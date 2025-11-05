@@ -1,0 +1,46 @@
+# Backend
+teamai-backend/src/main/resources/application.yml
+teamai-backend/build/
+teamai-backend/.gradle/
+teamai-backend/logs/
+teamai-backend/.idea/
+teamai-backend/*.iml
+
+# Flutter
+team_ai/.dart_tool/
+team_ai/.flutter-plugins
+team_ai/.flutter-plugins-dependencies
+team_ai/.packages
+team_ai/build/
+team_ai/ios/Pods/
+team_ai/ios/.symlinks/
+team_ai/ios/Flutter/Flutter.framework
+team_ai/ios/Flutter/Flutter.podspec
+team_ai/.idea/
+team_ai/*.iml
+team_ai/pubspec.lock
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Sensitive files
+*.env
+.env
+*.key
+*.pem
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Docker volumes
+postgres_data/
+redis_data/
