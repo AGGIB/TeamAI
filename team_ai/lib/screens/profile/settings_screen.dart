@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/projects_provider.dart';
 import '../settings/skills_editor_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -647,6 +648,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (confirmed == true && mounted) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final projectsProvider = Provider.of<ProjectsProvider>(context, listen: false);
+      
+      // Очистить все данные
+      projectsProvider.clearAll();
       await authProvider.logout();
       
       if (mounted) {

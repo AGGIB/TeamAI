@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/projects_provider.dart';
 import '../../models/task.dart';
+import '../task/my_tasks_screen.dart';
 import 'package:intl/intl.dart';
 
 class HomeDashboard extends StatelessWidget {
@@ -98,14 +99,34 @@ class HomeDashboard extends StatelessWidget {
 
               const SizedBox(height: 32),
 
-              // Мои задачи
-              Text(
-                'Мои задачи',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black,
-                ),
+              // Мои задачи с кнопкой "Смотреть все"
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Мои задачи',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black,
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const MyTasksScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.list_alt, size: 18),
+                    label: const Text('Смотреть все'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF4F9CF9),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
 

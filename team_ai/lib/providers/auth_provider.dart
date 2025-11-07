@@ -43,7 +43,11 @@ class AuthProvider extends ChangeNotifier {
               name: userData['name'],
               email: userData['email'],
               role: userData['role'],
-              skills: (userData['skills'] as List?)?.map((s) => s['name'] as String).toList() ?? [],
+              skills: (userData['skills'] as List?)?.map((s) {
+                if (s is String) return s;
+                if (s is Map && s.containsKey('name')) return s['name'] as String;
+                return s.toString();
+              }).toList() ?? [],
               experienceYears: userData['experienceYears'] ?? 0,
             );
             _status = AuthStatus.authenticated;
@@ -88,7 +92,11 @@ class AuthProvider extends ChangeNotifier {
           name: userData['name'],
           email: userData['email'],
           role: userData['role'],
-          skills: (userData['skills'] as List?)?.map((s) => s['name'] as String).toList() ?? [],
+          skills: (userData['skills'] as List?)?.map((s) {
+            if (s is String) return s;
+            if (s is Map && s.containsKey('name')) return s['name'] as String;
+            return s.toString();
+          }).toList() ?? [],
           experienceYears: userData['experienceYears'] ?? 0,
         );
 
@@ -137,7 +145,11 @@ class AuthProvider extends ChangeNotifier {
           name: userData['name'],
           email: userData['email'],
           role: userData['role'],
-          skills: (userData['skills'] as List?)?.map((s) => s['name'] as String).toList() ?? [],
+          skills: (userData['skills'] as List?)?.map((s) {
+            if (s is String) return s;
+            if (s is Map && s.containsKey('name')) return s['name'] as String;
+            return s.toString();
+          }).toList() ?? [],
           experienceYears: userData['experienceYears'] ?? 0,
         );
 

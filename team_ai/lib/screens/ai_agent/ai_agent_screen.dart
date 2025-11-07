@@ -6,6 +6,7 @@ import '../../providers/projects_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/skills_check.dart';
 import 'project_detail_screen.dart';
+import '../project/create_project_screen.dart';
 
 class AIAgentScreen extends StatelessWidget {
   const AIAgentScreen({super.key});
@@ -112,14 +113,20 @@ class AIAgentScreen extends StatelessWidget {
                   return;
                 }
                 
-                // TODO: Навигация к созданию проекта
+                // Навигация к созданию проекта
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Функционал создания проекта интегрирован с проверкой навыков!'),
-                      backgroundColor: Color(0xFF4CAF50),
+                  final result = await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CreateProjectScreen(),
                     ),
                   );
+                  
+                  // Если проект создан, обновить список
+                  if (result == true && context.mounted) {
+                    final projectsProvider = Provider.of<ProjectsProvider>(context, listen: false);
+                    await projectsProvider.loadAllData();
+                  }
                 }
               },
               icon: const Icon(Icons.add),

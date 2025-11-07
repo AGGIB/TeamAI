@@ -6,7 +6,8 @@ class ApiService {
   // Backend URL
   // Для iOS симулятора используйте 127.0.0.1
   // Для Android эмулятора используйте 10.0.2.2
-  static const String baseUrl = 'http://127.0.0.1:8080/api';
+  // Для реального устройства используйте IP адрес компьютера в локальной сети
+  static const String baseUrl = 'http://10.202.23.23:8080/api';
   
   final PreferencesService _prefsService = PreferencesService();
 
@@ -153,13 +154,21 @@ class ApiService {
 
   Future<List<dynamic>> searchUsers(String email) async {
     final response = await get('/users/search?email=$email');
-    return response['data'] ?? [];
+    final data = response['data'];
+    if (data is List) {
+      return data;
+    }
+    return [];
   }
 
   // Project endpoints
   Future<List<dynamic>> getProjects() async {
     final response = await get('/projects');
-    return response['data'] ?? [];
+    final data = response['data'];
+    if (data is List) {
+      return data;
+    }
+    return [];
   }
 
   Future<Map<String, dynamic>> getProject(String projectId) async {
@@ -170,10 +179,18 @@ class ApiService {
     return post('/projects', data);
   }
 
+  Future<Map<String, dynamic>> deleteProject(String projectId) async {
+    return delete('/projects/$projectId');
+  }
+
   // Task endpoints
   Future<List<dynamic>> getTasks() async {
     final response = await get('/tasks');
-    return response['data'] ?? [];
+    final data = response['data'];
+    if (data is List) {
+      return data;
+    }
+    return [];
   }
 
   Future<Map<String, dynamic>> createTask(Map<String, dynamic> data) async {

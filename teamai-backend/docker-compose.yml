@@ -31,6 +31,19 @@ services:
     networks:
       - teamai-network
 
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: teamai-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@teamai.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    networks:
+      - teamai-network
+    depends_on:
+      - postgres
+
 volumes:
   postgres_data:
   redis_data:

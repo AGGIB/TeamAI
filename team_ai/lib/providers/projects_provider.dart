@@ -38,6 +38,15 @@ class ProjectsProvider extends ChangeNotifier {
     // Данные будут загружены после успешного входа
   }
   
+  // Очистить все данные (при выходе)
+  void clearAll() {
+    _projects = [];
+    _allTasks = [];
+    _isLoading = false;
+    _errorMessage = null;
+    notifyListeners();
+  }
+  
   // Загрузить проекты с backend
   Future<void> loadProjects() async {
     _isLoading = true;
@@ -141,6 +150,20 @@ class ProjectsProvider extends ChangeNotifier {
     }
   }
   
+  // Удалить проект
+  Future<bool> deleteProject(String projectId) async {
+    try {
+      await _apiService.deleteProject(projectId);
+      await loadProjects();
+      return true;
+    } catch (e) {
+      _errorMessage = 'Ошибка удаления проекта: $e';
+      print('Error deleting project: $e');
+      notifyListeners();
+      return false;
+    }
+  }
+  
   // Создать задачу
   Future<bool> createTask(Map<String, dynamic> taskData) async {
     try {
@@ -170,7 +193,14 @@ class ProjectsProvider extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
       
-      return result;
+      // Проверяем успех по наличию createdTasks
+      final createdTasks = result['data']?['createdTasks'] ?? 0;
+      
+      return {
+        'success': createdTasks > 0,
+        'message': result['data']?['message'] ?? 'Задачи распределены',
+        'createdTasks': createdTasks,
+      };
     } catch (e) {
       _errorMessage = 'Ошибка AI распределения: $e';
       _isLoading = false;

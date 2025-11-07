@@ -4,6 +4,7 @@ import com.teamai.teamai_backend.model.dto.request.CreateProjectRequest;
 import com.teamai.teamai_backend.model.dto.response.ApiResponse;
 import com.teamai.teamai_backend.model.dto.response.ProjectResponse;
 import com.teamai.teamai_backend.service.ProjectService;
+import com.teamai.teamai_backend.util.SecurityUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,11 +24,12 @@ import java.util.UUID;
 public class ProjectController {
     
     private final ProjectService projectService;
+    private final SecurityUtils securityUtils;
     
     @GetMapping
     @Operation(summary = "Получить все проекты пользователя")
     public ResponseEntity<ApiResponse<List<ProjectResponse>>> getAllProjects() {
-        UUID userId = UUID.randomUUID(); // TODO: get from JWT
+        UUID userId = securityUtils.getCurrentUserId();
         List<ProjectResponse> projects = projectService.getAllProjects(userId);
         return ResponseEntity.ok(ApiResponse.success(projects));
     }
@@ -43,8 +45,16 @@ public class ProjectController {
     @Operation(summary = "Создать новый проект")
     public ResponseEntity<ApiResponse<ProjectResponse>> createProject(
             @Valid @RequestBody CreateProjectRequest request) {
-        UUID userId = UUID.randomUUID(); // TODO: get from JWT
+        UUID userId = securityUtils.getCurrentUserId();
         ProjectResponse project = projectService.createProject(userId, request);
         return ResponseEntity.ok(ApiResponse.success("Проект создан", project));
+    }
+    
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Удалить проект")
+    public ResponseEntity<ApiResponse<Void>> deleteProject(@PathVariable UUID id) {
+        UUID userId = securityUtils.getCurrentUserId();
+        projectService.deleteProject(id, userId);
+        return ResponseEntity.ok(ApiResponse.success("Проект удален", null));
     }
 }

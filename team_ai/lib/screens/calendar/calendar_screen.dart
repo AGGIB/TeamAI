@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../models/calendar_event.dart';
+import 'package:provider/provider.dart';
+import '../../models/task.dart';
+import '../../providers/projects_provider.dart';
+import '../../providers/auth_provider.dart';
+import '../chat/task_chat_screen.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -11,142 +15,155 @@ class CalendarScreen extends StatefulWidget {
 class _CalendarScreenState extends State<CalendarScreen> {
   DateTime _selectedDate = DateTime.now();
   DateTime _focusedMonth = DateTime.now();
-  List<CalendarEvent> _events = [];
 
   @override
   void initState() {
     super.initState();
-    _loadEvents();
-  }
-
-  void _loadEvents() {
-    // Mock данные - заменить на API
-    setState(() {
-      _events = _getMockEvents();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadTasks();
     });
   }
 
-  List<CalendarEvent> _getMockEvents() {
-    final now = DateTime.now();
-    return [
-      CalendarEvent(
-        id: '1',
-        title: 'Название Проекта/Задачи',
-        description: 'Описание задачи',
-        date: now,
-        startTime: DateTime(now.year, now.month, now.day, 10, 0),
-        endTime: DateTime(now.year, now.month, now.day, 13, 0),
-        category: 'Брейншторм',
-        reminder: true,
-        categoryColor: const Color(0xFF10B981),
-      ),
-      CalendarEvent(
-        id: '2',
-        title: 'Название Проекта/Задачи',
-        description: 'Описание задачи',
-        date: now,
-        startTime: DateTime(now.year, now.month, now.day, 14, 0),
-        endTime: DateTime(now.year, now.month, now.day, 15, 0),
-        category: 'Дизайн',
-        reminder: false,
-        categoryColor: const Color(0xFF7C3AED),
-      ),
-      CalendarEvent(
-        id: '3',
-        title: 'Название Проекта/Задачи',
-        description: 'Описание задачи',
-        date: now,
-        startTime: DateTime(now.year, now.month, now.day, 19, 0),
-        endTime: DateTime(now.year, now.month, now.day, 20, 0),
-        category: 'Разработка',
-        reminder: true,
-        categoryColor: const Color(0xFF10B981),
-      ),
-    ];
+  Future<void> _loadTasks() async {
+    final projectsProvider = Provider.of<ProjectsProvider>(context, listen: false);
+    await projectsProvider.loadAllData();
   }
 
-  List<CalendarEvent> _getEventsForDate(DateTime date) {
-    return _events.where((event) {
-      return event.date.year == date.year &&
-          event.date.month == date.month &&
-          event.date.day == date.day;
+  List<Task> _getTasksForDate(DateTime date, List<Task> allTasks) {
+    final authProvider = context.read<AuthProvider>();
+    final currentUser = authProvider.currentUser;
+    
+    return allTasks.where((task) {
+      final deadline = task.deadline;
+      final isDateMatch = deadline.year == date.year &&
+          deadline.month == date.month &&
+          deadline.day == date.day;
+      
+      // Показываем только задачи текущего пользователя
+      final isAssignedToMe = currentUser != null && task.assignedToId == currentUser.id;
+      
+      return isDateMatch && isAssignedToMe;
     }).toList();
   }
 
-  bool _hasEventsOnDate(DateTime date) {
-    return _getEventsForDate(date).isNotEmpty;
+  bool _hasTasksOnDate(DateTime date, List<Task> allTasks) {
+    return _getTasksForDate(date, allTasks).isNotEmpty;
+  }
+
+  Color _getPriorityColor(String priority) {
+    switch (priority.toUpperCase()) {
+      case 'HIGH':
+        return Colors.red;
+      case 'MEDIUM':
+        return Colors.orange;
+      case 'LOW':
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toUpperCase()) {
+      case 'TODO':
+        return const Color(0xFF9CA3AF);
+      case 'IN_PROGRESS':
+        return const Color(0xFF3B82F6);
+      case 'DONE':
+        return const Color(0xFF10B981);
+      default:
+        return Colors.grey;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildCalendarHeader(),
-            _buildWeekDaysHeader(),
-            _buildCalendarGrid(),
-            const Divider(height: 1, thickness: 1, color: Color(0xFFE0E0E0)),
-            Expanded(
-              child: _buildEventsList(),
+    return Consumer<ProjectsProvider>(
+      builder: (context, projectsProvider, child) {
+        final allTasks = projectsProvider.allTasks;
+        
+        return Scaffold(
+          backgroundColor: Colors.white,
+          body: SafeArea(
+            child: Column(
+              children: [
+                _buildCalendarHeader(),
+                _buildMonthNavigation(),
+                _buildWeekDaysHeader(),
+                _buildCalendarGrid(allTasks),
+                const Divider(height: 1),
+                Expanded(
+                  child: _buildTasksList(allTasks),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddTaskModal(context),
-        backgroundColor: const Color(0xFF4F9CF9),
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildCalendarHeader() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      child: const Row(
+        children: [
+          Text(
+            'Календарь',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF212121),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMonthNavigation() {
     final monthNames = [
       'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
       'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
     ];
 
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          IconButton(
-            icon: const Icon(Icons.chevron_left),
-            onPressed: () {
-              setState(() {
-                _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1);
-              });
-            },
+          Text(
+            '${monthNames[_focusedMonth.month - 1]} ${_focusedMonth.year}',
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-          Column(
+          Row(
             children: [
-              Text(
-                monthNames[_focusedMonth.month - 1],
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF212121),
-                ),
+              IconButton(
+                icon: const Icon(Icons.chevron_left),
+                onPressed: () {
+                  setState(() {
+                    _focusedMonth = DateTime(
+                      _focusedMonth.year,
+                      _focusedMonth.month - 1,
+                    );
+                  });
+                },
               ),
-              Text(
-                '${_focusedMonth.year}',
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF757575),
-                ),
+              IconButton(
+                icon: const Icon(Icons.chevron_right),
+                onPressed: () {
+                  setState(() {
+                    _focusedMonth = DateTime(
+                      _focusedMonth.year,
+                      _focusedMonth.month + 1,
+                    );
+                  });
+                },
               ),
             ],
-          ),
-          IconButton(
-            icon: const Icon(Icons.chevron_right),
-            onPressed: () {
-              setState(() {
-                _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1);
-              });
-            },
           ),
         ],
       ),
@@ -154,9 +171,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _buildWeekDaysHeader() {
-    const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const weekDays = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+    
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+      padding: const EdgeInsets.all(8.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: weekDays.map((day) {
@@ -165,9 +183,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
               child: Text(
                 day,
                 style: const TextStyle(
-                  fontSize: 12,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
                   color: Color(0xFF757575),
-                  fontWeight: FontWeight.w500,
                 ),
               ),
             ),
@@ -177,34 +195,37 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  Widget _buildCalendarGrid() {
-    final daysInMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0).day;
+  Widget _buildCalendarGrid(List<Task> allTasks) {
     final firstDayOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
-    final firstWeekday = firstDayOfMonth.weekday; // 1 = Monday, 7 = Sunday
+    final lastDayOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0);
+    final daysInMonth = lastDayOfMonth.day;
     
-    final previousMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1);
-    final daysInPreviousMonth = DateTime(previousMonth.year, previousMonth.month + 1, 0).day;
-
+    int weekdayOfFirstDay = firstDayOfMonth.weekday;
+    final daysFromPrevMonth = weekdayOfFirstDay - 1;
+    
+    final lastDayOfPrevMonth = DateTime(_focusedMonth.year, _focusedMonth.month, 0);
+    final daysInPrevMonth = lastDayOfPrevMonth.day;
+    
     List<Widget> dayWidgets = [];
-
-    // Previous month days
-    for (int i = firstWeekday - 1; i > 0; i--) {
-      final day = daysInPreviousMonth - i + 1;
-      final date = DateTime(previousMonth.year, previousMonth.month, day);
-      dayWidgets.add(_buildDayCell(day, isCurrentMonth: false, date: date));
+    
+    // Предыдущий месяц
+    for (int i = daysFromPrevMonth; i > 0; i--) {
+      final day = daysInPrevMonth - i + 1;
+      final date = DateTime(_focusedMonth.year, _focusedMonth.month - 1, day);
+      dayWidgets.add(_buildDayCell(day, isCurrentMonth: false, date: date, allTasks: allTasks));
     }
-
-    // Current month days
+    
+    // Текущий месяц
     for (int day = 1; day <= daysInMonth; day++) {
       final date = DateTime(_focusedMonth.year, _focusedMonth.month, day);
-      dayWidgets.add(_buildDayCell(day, isCurrentMonth: true, date: date));
+      dayWidgets.add(_buildDayCell(day, isCurrentMonth: true, date: date, allTasks: allTasks));
     }
-
-    // Next month days to fill the grid
-    final remainingDays = 42 - dayWidgets.length; // 6 rows * 7 days
-    for (int day = 1; day <= remainingDays; day++) {
+    
+    // Следующий месяц
+    final remainingCells = 42 - dayWidgets.length;
+    for (int day = 1; day <= remainingCells; day++) {
       final date = DateTime(_focusedMonth.year, _focusedMonth.month + 1, day);
-      dayWidgets.add(_buildDayCell(day, isCurrentMonth: false, date: date));
+      dayWidgets.add(_buildDayCell(day, isCurrentMonth: false, date: date, allTasks: allTasks));
     }
 
     return Padding(
@@ -217,7 +238,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  Widget _buildDayCell(int day, {required bool isCurrentMonth, required DateTime date}) {
+  Widget _buildDayCell(int day, {
+    required bool isCurrentMonth,
+    required DateTime date,
+    required List<Task> allTasks,
+  }) {
     final isToday = date.year == DateTime.now().year &&
         date.month == DateTime.now().month &&
         date.day == DateTime.now().day;
@@ -226,7 +251,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         date.month == _selectedDate.month &&
         date.day == _selectedDate.day;
     
-    final hasEvents = _hasEventsOnDate(date);
+    final hasTasks = _hasTasksOnDate(date, allTasks);
 
     return GestureDetector(
       onTap: () {
@@ -240,6 +265,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: isSelected ? const Color(0xFF4F9CF9) : Colors.transparent,
+          border: isToday ? Border.all(color: const Color(0xFF4F9CF9), width: 2) : null,
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -256,22 +282,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         : const Color(0xFF212121),
               ),
             ),
-            if (hasEvents && isCurrentMonth)
+            if (hasTasks && isCurrentMonth)
               Container(
                 margin: const EdgeInsets.only(top: 2),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: _getEventsForDate(date).take(3).map((event) {
-                    return Container(
-                      width: 4,
-                      height: 4,
-                      margin: const EdgeInsets.symmetric(horizontal: 1),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isSelected ? Colors.white : event.categoryColor,
-                      ),
-                    );
-                  }).toList(),
+                width: 4,
+                height: 4,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: isSelected ? Colors.white : const Color(0xFF4F9CF9),
                 ),
               ),
           ],
@@ -280,10 +298,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
-  Widget _buildEventsList() {
-    final events = _getEventsForDate(_selectedDate);
+  Widget _buildTasksList(List<Task> allTasks) {
+    final tasksForDate = _getTasksForDate(_selectedDate, allTasks);
 
-    if (events.isEmpty) {
+    if (tasksForDate.isEmpty) {
       return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -295,7 +313,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
             ),
             SizedBox(height: 16),
             Text(
-              'Нет событий на эту дату',
+              'Нет задач на эту дату',
               style: TextStyle(
                 fontSize: 16,
                 color: Color(0xFF757575),
@@ -308,436 +326,125 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: events.length,
+      itemCount: tasksForDate.length,
       itemBuilder: (context, index) {
-        final event = events[index];
-        return _buildEventCard(event);
+        final task = tasksForDate[index];
+        return _buildTaskCard(task);
       },
     );
   }
 
-  Widget _buildEventCard(CalendarEvent event) {
-    return Container(
+  Widget _buildTaskCard(Task task) {
+    final priorityColor = _getPriorityColor(task.priority.name.toUpperCase());
+    final statusColor = _getStatusColor(task.status.name.toUpperCase());
+    
+    return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
+      elevation: 2,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE0E0E0)),
+        side: BorderSide(color: priorityColor.withOpacity(0.3), width: 2),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 4,
-            height: 60,
-            decoration: BoxDecoration(
-              color: event.categoryColor,
-              borderRadius: BorderRadius.circular(2),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => TaskChatScreen(task: task),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  event.getTimeRange(),
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF757575),
+          );
+        },
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      task.status.name.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: statusColor,
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  event.title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF212121),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: priorityColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      task.priority.name.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: priorityColor,
+                      ),
+                    ),
                   ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.chat_bubble_outline, size: 20),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => TaskChatScreen(task: task),
+                        ),
+                      );
+                    },
+                    color: const Color(0xFF4F9CF9),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                task.title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF212121),
                 ),
-                const SizedBox(height: 4),
+              ),
+              if (task.description.isNotEmpty) ...[
+                const SizedBox(height: 8),
                 Text(
-                  event.description,
+                  task.description,
                   style: const TextStyle(
                     fontSize: 14,
                     color: Color(0xFF757575),
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
-            ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Icon(Icons.access_time, size: 16, color: Color(0xFF757575)),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${task.deadline.hour.toString().padLeft(2, '0')}:${task.deadline.minute.toString().padLeft(2, '0')}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF757575),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          IconButton(
-            icon: const Icon(Icons.more_horiz, color: Color(0xFF757575)),
-            onPressed: () {
-              // TODO: Show options menu
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAddTaskModal(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const AddTaskModal(),
-    );
-  }
-}
-
-class AddTaskModal extends StatefulWidget {
-  const AddTaskModal({super.key});
-
-  @override
-  State<AddTaskModal> createState() => _AddTaskModalState();
-}
-
-class _AddTaskModalState extends State<AddTaskModal> {
-  final _titleController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  DateTime? _selectedDate;
-  TimeOfDay? _startTime;
-  TimeOfDay? _endTime;
-  bool _reminder = false;
-  String _selectedCategory = 'Брейншторм';
-  
-  final List<String> _categories = ['Брейншторм', 'Дизайн', 'Разработка', 'Маркетинг', 'Аналитика'];
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _descriptionController.dispose();
-    super.dispose();
-  }
-
-  Color _getCategoryColor(String category) {
-    switch (category) {
-      case 'Брейншторм':
-        return const Color(0xFF7C3AED);
-      case 'Дизайн':
-        return const Color(0xFF10B981);
-      case 'Разработка':
-        return const Color(0xFF3B82F6);
-      case 'Маркетинг':
-        return const Color(0xFFF59E0B);
-      case 'Аналитика':
-        return const Color(0xFF06B6D4);
-      default:
-        return const Color(0xFF6B7280);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'Добавить задачу',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF212121),
-              ),
-            ),
-            const SizedBox(height: 24),
-            TextField(
-              controller: _titleController,
-              decoration: InputDecoration(
-                hintText: 'Название события',
-                hintStyle: const TextStyle(color: Color(0xFFBDBDBD)),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF4F9CF9)),
-                ),
-                contentPadding: const EdgeInsets.all(16),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _descriptionController,
-              maxLines: 3,
-              decoration: InputDecoration(
-                hintText: 'Описание для ИИ',
-                hintStyle: const TextStyle(color: Color(0xFFBDBDBD)),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF4F9CF9)),
-                ),
-                contentPadding: const EdgeInsets.all(16),
-              ),
-            ),
-            const SizedBox(height: 16),
-            InkWell(
-              onTap: () async {
-                final date = await showDatePicker(
-                  context: context,
-                  initialDate: DateTime.now(),
-                  firstDate: DateTime.now(),
-                  lastDate: DateTime.now().add(const Duration(days: 365)),
-                );
-                if (date != null) {
-                  setState(() => _selectedDate = date);
-                }
-              },
-              child: Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0xFFE0E0E0)),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      _selectedDate == null
-                          ? 'Дата'
-                          : '${_selectedDate!.day}.${_selectedDate!.month}.${_selectedDate!.year}',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: _selectedDate == null
-                            ? const Color(0xFFBDBDBD)
-                            : const Color(0xFF212121),
-                      ),
-                    ),
-                    const Icon(Icons.calendar_today, color: Color(0xFFBDBDBD)),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: InkWell(
-                    onTap: () async {
-                      final time = await showTimePicker(
-                        context: context,
-                        initialTime: TimeOfDay.now(),
-                      );
-                      if (time != null) {
-                        setState(() => _startTime = time);
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: const Color(0xFFE0E0E0)),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            _startTime == null
-                                ? 'Начало'
-                                : _startTime!.format(context),
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: _startTime == null
-                                  ? const Color(0xFFBDBDBD)
-                                  : const Color(0xFF212121),
-                            ),
-                          ),
-                          const Icon(Icons.access_time, color: Color(0xFFBDBDBD)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: InkWell(
-                    onTap: () async {
-                      final time = await showTimePicker(
-                        context: context,
-                        initialTime: TimeOfDay.now(),
-                      );
-                      if (time != null) {
-                        setState(() => _endTime = time);
-                      }
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: const Color(0xFFE0E0E0)),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            _endTime == null
-                                ? 'Конец'
-                                : _endTime!.format(context),
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: _endTime == null
-                                  ? const Color(0xFFBDBDBD)
-                                  : const Color(0xFF212121),
-                            ),
-                          ),
-                          const Icon(Icons.access_time, color: Color(0xFFBDBDBD)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Напоминать',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Color(0xFF212121),
-                  ),
-                ),
-                Switch(
-                  value: _reminder,
-                  onChanged: (value) {
-                    setState(() => _reminder = value);
-                  },
-                  activeColor: const Color(0xFF4F9CF9),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Выберите категорию',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF212121),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _categories.map((category) {
-                final isSelected = category == _selectedCategory;
-                return InkWell(
-                  onTap: () {
-                    setState(() => _selectedCategory = category);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? _getCategoryColor(category).withValues(alpha: 0.1)
-                          : const Color(0xFFF5F5F5),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isSelected
-                            ? _getCategoryColor(category)
-                            : Colors.transparent,
-                        width: 2,
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (isSelected)
-                          Container(
-                            width: 8,
-                            height: 8,
-                            margin: const EdgeInsets.only(right: 8),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: _getCategoryColor(category),
-                            ),
-                          ),
-                        Text(
-                          category,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: isSelected
-                                ? _getCategoryColor(category)
-                                : const Color(0xFF757575),
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 12),
-            TextButton.icon(
-              onPressed: () {
-                // TODO: Add new category
-              },
-              icon: const Icon(Icons.add, size: 16, color: Color(0xFF4F9CF9)),
-              label: const Text(
-                'Add new',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF4F9CF9),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: () {
-                  // TODO: Create task with AI
-                  Navigator.pop(context);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4F9CF9),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 0,
-                ),
-                child: const Text(
-                  'Создать задачу с помощью ИИ',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ],
         ),
       ),
     );

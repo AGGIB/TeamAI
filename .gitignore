@@ -29,6 +29,9 @@ team_ai/pubspec.lock
 .env
 *.key
 *.pem
+*.backup
+application.yml
+application-*.yml
 
 # Logs
 *.log

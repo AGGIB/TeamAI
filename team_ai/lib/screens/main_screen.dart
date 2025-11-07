@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'home/home_dashboard.dart';
 import 'ai_agent/ai_agent_screen.dart';
 import 'calendar/calendar_screen.dart';
+import 'team/team_screen.dart';
 import 'profile/profile_screen.dart';
 
 class MainScreen extends StatefulWidget {
@@ -19,6 +20,7 @@ class _MainScreenState extends State<MainScreen> {
     const HomeDashboard(),
     const AIAgentScreen(),
     const CalendarScreen(),
+    const TeamScreen(),
     const ProfileScreen(),
   ];
 
@@ -64,7 +66,11 @@ class _MainScreenState extends State<MainScreen> {
               label: 'Calendar',
             ),
             BottomNavigationBarItem(
-              icon: _buildNavIcon('assets/bottomNav/user_account.svg', 3),
+              icon: _buildIconWidget(Icons.groups, 3),
+              label: 'Team',
+            ),
+            BottomNavigationBarItem(
+              icon: _buildNavIcon('assets/bottomNav/user_account.svg', 4),
               label: 'Profile',
             ),
           ],
@@ -85,6 +91,18 @@ class _MainScreenState extends State<MainScreen> {
           isSelected ? const Color(0xFF4F9CF9) : const Color(0xFF9E9E9E),
           BlendMode.srcIn,
         ),
+      ),
+    );
+  }
+
+  Widget _buildIconWidget(IconData icon, int index) {
+    final isSelected = _currentIndex == index;
+    return Container(
+      padding: const EdgeInsets.all(8),
+      child: Icon(
+        icon,
+        size: 28,
+        color: isSelected ? const Color(0xFF4F9CF9) : const Color(0xFF9E9E9E),
       ),
     );
   }

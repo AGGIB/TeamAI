@@ -81,6 +81,19 @@ public class ProjectService {
         return mapToProjectResponse(project);
     }
     
+    @Transactional
+    public void deleteProject(UUID projectId, UUID userId) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Проект не найден"));
+        
+        // Проверка что пользователь - владелец проекта
+        if (!project.getOwner().getId().equals(userId)) {
+            throw new RuntimeException("Только владелец может удалить проект");
+        }
+        
+        projectRepository.delete(project);
+    }
+    
     private ProjectResponse mapToProjectResponse(Project project) {
         long tasksCount = project.getTasks() != null ? project.getTasks().size() : 0;
         long completedCount = project.getTasks() != null ? 

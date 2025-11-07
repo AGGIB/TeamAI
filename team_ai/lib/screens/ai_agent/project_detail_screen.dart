@@ -78,14 +78,26 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
               final result = await projectsProvider.distributeTasksWithAI(widget.project.id);
               
               if (context.mounted) {
+                final success = result['success'] == true;
+                final createdTasks = result['createdTasks'] ?? 0;
+                
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(result['success'] == true 
-                        ? 'Задачи распределены!' 
-                        : 'Ошибка распределения'),
-                    backgroundColor: result['success'] == true
+                    content: Text(success 
+                        ? 'GPT-4 создал $createdTasks ${_getTaskWord(createdTasks)}!' 
+                        : result['message'] ?? 'Ошибка распределения'),
+                    backgroundColor: success
                         ? const Color(0xFF4CAF50)
                         : Colors.red,
+                    duration: const Duration(seconds: 3),
+                    action: success ? SnackBarAction(
+                      label: 'Смотреть',
+                      textColor: Colors.white,
+                      onPressed: () {
+                        // Переключиться на вкладку "Мои задачи"
+                        _tabController.animateTo(1);
+                      },
+                    ) : null,
                   ),
                 );
               }
@@ -133,13 +145,66 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
             ),
           ),
           const SizedBox(width: 12),
-          const Text(
-            'Детали проекта',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF212121),
+          const Expanded(
+            child: Text(
+              'Детали проекта',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF212121),
+              ),
             ),
+          ),
+          IconButton(
+            onPressed: () => _showDeleteDialog(),
+            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.red.withOpacity(0.1),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Удалить проект?'),
+        content: Text('Вы уверены что хотите удалить "${widget.project.title}"?\nЭто действие нельзя отменить.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Отмена'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context); // Закрыть диалог
+              
+              final projectsProvider = Provider.of<ProjectsProvider>(context, listen: false);
+              final success = await projectsProvider.deleteProject(widget.project.id);
+              
+              if (context.mounted) {
+                if (success) {
+                  Navigator.pop(context); // Вернуться к списку проектов
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Проект удален'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(projectsProvider.errorMessage ?? 'Ошибка удаления'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Удалить', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -743,5 +808,11 @@ class _ProjectDetailScreenState extends State<ProjectDetailScreen>
       case TaskPriority.critical:
         return const Color(0xFFE53935);
     }
+  }
+
+  String _getTaskWord(int count) {
+    if (count == 1) return 'задачу';
+    if (count >= 2 && count <= 4) return 'задачи';
+    return 'задач';
   }
 }
